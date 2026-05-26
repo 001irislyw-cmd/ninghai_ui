@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>沉浸式点单 - 宁海智能餐车</title>
+    <style>
+        :root {
+            --primary: #A95C73;
+            --bg-color: #F8F4F6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-color);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .visual-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        .generative-symbol {
+            position: absolute;
+            width: 150vw;
+            height: 150vw;
+            opacity: 0.6;
+            z-index: 2;
+            animation: spinAndPulse 20s infinite alternate ease-in-out;
+        }
+
+        .food-planet {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 6px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 20px 50px rgba(169, 92, 115, 0.3);
+            z-index: 3;
+            animation: float 4s infinite ease-in-out;
+        }
+
+        @keyframes spinAndPulse {
+            0% { transform: scale(1) rotate(0deg); }
+            100% { transform: scale(1.15) rotate(15deg); }
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .hud-panel {
+            position: absolute;
+            bottom: 25px;
+            left: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 24px;
+            padding: 24px 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.5);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .title-area h1 { font-size: 22px; font-weight: 700; color: #1A1A1A; line-height: 1.2;}
+        .title-area p { font-size: 12px; color: #888; margin-top: 4px; }
+        .price-area { font-size: 26px; font-weight: 800; color: var(--primary); }
+        .price-area span { font-size: 14px; margin-right: 2px; }
+
+        .tags-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag {
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.9);
+            color: #555;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid #EEE;
+        }
+        .tag.active {
+            background: var(--primary);
+            color: #FFF;
+            border-color: var(--primary);
+        }
+
+        .hud-action {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .stepper {
+            display: flex;
+            align-items: center;
+            background: rgba(0,0,0,0.04);
+            border-radius: 20px;
+            padding: 4px 6px;
+        }
+        .step-btn {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: white;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 18px; font-weight: 500; color: #1A1A1A;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .step-num { width: 30px; text-align: center; font-size: 16px; font-weight: 700; }
+
+        .pay-btn {
+            background: #1A1A1A;
+            color: white;
+            font-size: 16px; font-weight: 600;
+            padding: 12px 32px;
+            border-radius: 25px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="sound-click" src="https://actions.google.com/sounds/v1/water/water_drop.ogg"></audio>
+    <audio id="sound-pay" src="https://actions.google.com/sounds/v1/cartoon/magic_chime.ogg"></audio>
+
+    <div class="visual-canvas">
+        <img class="generative-symbol" src="symbol.png" alt="图腾">
+        <img class="food-planet" src="food.jpg" alt="浆板汤果实拍">
+    </div>
+
+    <div class="hud-panel">
+        <div class="hud-header">
+            <div class="title-area">
+                <h1>洋糕</h1>
+                <p>酥香绵软，老宁海味道</p>
+            </div>
+            <div class="price-area">
+                <span>¥</span><span id="total-price">3.50</span>
+            </div>
+        </div>
+
+        <div class="tags-group">
+            <div class="tag active" onclick="selectTag(this)">正常甜</div>
+            <div class="tag" onclick="selectTag(this)">少糖</div>
+            <div class="tag" onclick="selectTag(this)">多桂花</div>
+            <div class="tag" onclick="selectTag(this)">打包带走</div>
+        </div>
+
+        <div class="hud-action">
+            <div class="stepper">
+                <div class="step-btn" onclick="updateQty(-1)">-</div>
+                <div class="step-num" id="qty">1</div>
+                <div class="step-btn" onclick="updateQty(1)">+</div>
+            </div>
+            <button class="pay-btn" onclick="triggerPay()">支付</button>
+        </div>
+    </div>
+
+    <script>
+        const unitPrice = 3.5;
+        let qty = 1;
+
+        const soundClick = document.getElementById('sound-click');
+        const soundPay = document.getElementById('sound-pay');
+
+        function playClickFeedback() {
+            soundClick.currentTime = 0;
+            soundClick.play().catch(e => console.log("需用户先交互才能播放音频"));
+            if (navigator.vibrate) navigator.vibrate(15);
+        }
+
+        function updateQty(change) {
+            qty += change;
+            if(qty < 1) qty = 1;
+            document.getElementById('qty').innerText = qty;
+            document.getElementById('total-price').innerText = (qty * unitPrice).toFixed(2);
+            playClickFeedback();
+        }
+
+        function selectTag(element) {
+            element.classList.toggle('active');
+            playClickFeedback();
+
+            if(element.innerText === '正常甜' && element.classList.contains('active')) {
+                element.nextElementSibling.classList.remove('active');
+            }
+            if(element.innerText === '少糖' && element.classList.contains('active')) {
+                element.previousElementSibling.classList.remove('active');
+            }
+        }
+
+        function triggerPay() {
+            soundPay.currentTime = 0;
+            soundPay.play();
+            if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+
+            const btn = document.querySelector('.pay-btn');
+            btn.innerText = "订单提交中...";
+            btn.style.background = "var(--primary)";
+
+            setTimeout(() => {
+                alert("支付成功！\n系统已记录您的偏好数据。\n取餐号：A012");
+                btn.innerText = "支付";
+                btn.style.background = "#1A1A1A";
+            }, 1200);
+        }
+    </script>
+</body>
+</html>
